@@ -601,24 +601,29 @@ document.addEventListener('pointerdown', e => {
   if (!gestureOk(e)) return;
   e.preventDefault();
   $('hint').classList.add('gone');
-  gs = { x0: e.clientX, y0: e.clientY, ax: e.clientX, ay: e.clientY, t0: performance.now(), moved: false };
+  gs = { x0: e.clientX, y0: e.clientY, ax: e.clientX, ay: e.clientY, t0: performance.now(), moved: false, piece, dead: false };
 });
+// Yksi ele koskee vain sitä palikkaa, jonka päällä se alkoi: kun palikka lukittuu, ele lakkaa vaikuttamasta
+// (muuten pitkä veto tai pyyhkäisy pudottaisi myös seuraavat palikat)
 document.addEventListener('pointermove', e => {
-  if (!gs) return;
+  if (!gs || gs.dead) return;
+  if (piece !== gs.piece) { gs.dead = true; return; }
   const r = bd.getBoundingClientRect(), cw = r.width / COLS, ch = r.height / ROWS;
   // Kun veto on selvästi alaspäin, sivuttaisliike lukitaan loppuvedon ajaksi
   const vy = e.clientY - gs.y0;
   if (vy > cw * .6 && vy > Math.abs(e.clientX - gs.x0) * 1.2) gs.down = true;
   if (!gs.down) {
-    while (e.clientX - gs.ax >= cw * .9) { act('ArrowRight'); gs.ax += cw; gs.moved = true; }
-    while (gs.ax - e.clientX >= cw * .9) { act('ArrowLeft'); gs.ax -= cw; gs.moved = true; }
+    while (piece === gs.piece && e.clientX - gs.ax >= cw * .9) { act('ArrowRight'); gs.ax += cw; gs.moved = true; }
+    while (piece === gs.piece && gs.ax - e.clientX >= cw * .9) { act('ArrowLeft'); gs.ax -= cw; gs.moved = true; }
   }
-  while (e.clientY - gs.ay >= ch * .9) { act('ArrowDown'); gs.ay += ch; gs.moved = true; gs.down = true; }
+  while (piece === gs.piece && e.clientY - gs.ay >= ch * .9) { act('ArrowDown'); gs.ay += ch; gs.moved = true; gs.down = true; }
+  if (piece !== gs.piece) gs.dead = true;
   if (e.clientY < gs.ay) gs.ay = e.clientY;
 });
 document.addEventListener('pointerup', e => {
   if (!gs) return;
   const g = gs; gs = null;
+  if (g.dead || piece !== g.piece) return;
   const ch = bd.getBoundingClientRect().height / ROWS;
   const dt = performance.now() - g.t0, dx = e.clientX - g.x0, dy = e.clientY - g.y0;
   if (!g.moved && Math.hypot(dx, dy) < 12 && dt < 300) act('ArrowUp');
