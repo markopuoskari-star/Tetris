@@ -42,6 +42,17 @@
             display:flex;flex-direction:column;align-items:center;gap:10px;font-size:32px;text-align:center}
   #ov .menu p{margin:0;font-size:26px;line-height:1.3}
   #ov button,#pad button{font:inherit;color:var(--ink);background:var(--panel);border:6px solid var(--frame);cursor:pointer}
+  #ov .menu{max-height:100%;overflow:auto}
+  #ov .form{display:flex;gap:8px;width:100%}
+  #ov .form input{flex:1;min-width:0;font:inherit;font-size:28px;color:var(--ink-strong);background:#fff;
+                  border:6px solid var(--frame);padding:0 8px;border-radius:0}
+  #ov .form button{width:auto;padding-inline:12px}
+  #ov .list{width:100%;font-size:24px;line-height:1.25;text-align:left}
+  #ov .srow{display:flex;gap:8px;padding:1px 6px}
+  #ov .srow.me{background:var(--well);color:var(--ink-strong)}
+  #ov .rk{width:34px;flex:none}
+  #ov .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #ov .sc{font-variant-numeric:tabular-nums}
   #ov button{width:100%;font-size:34px;padding:4px 0}
   #ov button.primary{color:var(--ink-strong)}
   #ov button:hover,#pauseBtn:hover{color:var(--ink-strong)}
@@ -132,25 +143,43 @@ function spawn() {
   drawNext();
   if (collides(piece.m, piece.x, piece.y)) gameOver();
 }
+let clearFx = null;      // rivien poistoanimaatio
+const popups = [];       // kelluvat pistetekstit
+const FLASH_MS = 520, FALL_MS = 180;
+const ease = x => 1 - Math.pow(1 - x, 3);
 function lock() {
   piece.m.forEach((row, y) => row.forEach((v, x) => {
     if (v && piece.y + y >= 0) grid[piece.y + y][piece.x + x] = v;
   }));
-  let cleared = 0;
-  for (let y = ROWS - 1; y >= 0; y--) {
-    if (grid[y].every(v => v)) {
-      grid.splice(y, 1);
-      grid.unshift(Array(COLS).fill(0));
-      cleared++; y++;
-    }
+  const rows = [];
+  grid.forEach((r, y) => { if (r.every(v => v)) rows.push(y); });
+  piece = null;
+  if (!rows.length) { spawn(); return; }
+  const gain = [0,100,300,500,800][rows.length] * level;
+  score += gain;
+  lines += rows.length;
+  level = 1 + Math.floor(lines / 10);
+  updateUI();
+  popups.push({ text: '+' + fmt(gain), y: (rows[0] + rows[rows.length - 1] + 1) / 2 * SZ, t: 0 });
+  clearFx = { rows, t: 0, phase: 0, off: [] };
+  state = 'clear';
+}
+function stepClear(dt) {
+  const fx = clearFx;
+  fx.t += dt;
+  if (fx.phase === 0 && fx.t >= FLASH_MS) {
+    // poista rivit ja laske, kuinka monta ruutua ylemmät rivit putoavat
+    const old = grid.map((r, y) => ({ r, y }));
+    const kept = old.filter(o => !fx.rows.includes(o.y));
+    const dropBy = o => fx.rows.filter(c => c > o.y).length;
+    fx.off = Array(ROWS).fill(0);
+    const gone = fx.rows.length;
+    kept.forEach((o, i) => { fx.off[gone + i] = dropBy(o); });
+    grid = [...Array.from({ length: gone }, () => Array(COLS).fill(0)), ...kept.map(o => o.r)];
+    fx.phase = 1; fx.t = 0;
+  } else if (fx.phase === 1 && fx.t >= FALL_MS) {
+    clearFx = null; state = 'play'; dropTimer = 0; spawn();
   }
-  if (cleared) {
-    score += [0,100,300,500,800][cleared] * level;
-    lines += cleared;
-    level = 1 + Math.floor(lines / 10);
-    updateUI();
-  }
-  if (state === 'play') spawn();
 }
 const move = dx => { if (!collides(piece.m, piece.x + dx, piece.y)) piece.x += dx; };
 function softDrop() {
@@ -192,9 +221,32 @@ function drawNext() {
   m.forEach((row, y) => row.forEach((v, x) => v && cell(nctx, x, y, v, s)));
   nctx.restore();
 }
+function drawClearingRow(y, p) {
+  for (let x = 0; x < COLS; x++) {
+    const v = grid[y][x];
+    if (p < .45) {
+      cell(ctx, x, y, v);
+      if (Math.floor(p / .075) % 2 === 0) { ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(x * SZ, y * SZ, SZ, SZ); }
+    } else {
+      // ruudut kutistuvat keskeltä ulospäin
+      const q = (p - .45) / .55;
+      const sc = 1 - Math.min(1, Math.max(0, q * 1.5 - Math.abs(x - 4.5) / 4.5 * .5));
+      if (sc <= 0) continue;
+      ctx.save(); ctx.globalAlpha = sc;
+      ctx.translate((x + .5) * SZ, (y + .5) * SZ); ctx.scale(sc, sc);
+      cell(ctx, -.5, -.5, v);
+      ctx.restore();
+    }
+  }
+}
 function draw() {
   ctx.clearRect(0, 0, COLS * SZ, ROWS * SZ);
-  grid.forEach((row, y) => row.forEach((v, x) => v && cell(ctx, x, y, v)));
+  const fx = clearFx;
+  grid.forEach((row, y) => {
+    if (fx && fx.phase === 0 && fx.rows.includes(y)) return drawClearingRow(y, fx.t / FLASH_MS);
+    const dy = fx && fx.phase === 1 ? fx.off[y] * (1 - ease(Math.min(1, fx.t / FALL_MS))) : 0;
+    row.forEach((v, x) => v && cell(ctx, x, y - dy, v));
+  });
   if (piece && state === 'play') {
     let gy = piece.y;
     while (!collides(piece.m, piece.x, gy + 1)) gy++;
@@ -204,6 +256,16 @@ function draw() {
   }
   if (piece && state !== 'idle')
     piece.m.forEach((row, y) => row.forEach((v, x) => v && piece.y + y >= 0 && cell(ctx, piece.x + x, piece.y + y, v)));
+  ctx.font = '46px "Squada One", "Arial Narrow", sans-serif';
+  ctx.textAlign = 'center'; ctx.lineWidth = 6; ctx.lineJoin = 'round';
+  popups.forEach(p => {
+    const a = Math.max(0, 1 - Math.max(0, p.t - 500) / 500);
+    ctx.globalAlpha = a;
+    const y = p.y - Math.min(1, p.t / 1000) * 50;
+    ctx.strokeStyle = '#fff'; ctx.strokeText(p.text, COLS * SZ / 2, y);
+    ctx.fillStyle = '#0c0c14'; ctx.fillText(p.text, COLS * SZ / 2, y);
+  });
+  ctx.globalAlpha = 1;
 }
 function updateUI() {
   $('score').textContent = fmt(score);
@@ -218,25 +280,74 @@ function showDigit(n) {
   ov.replaceChildren(); ov.hidden = false;
   const d = document.createElement('div'); d.className = 'digit'; d.textContent = n; ov.append(d);
 }
-function showMenu(title, text, items) {
+function showMenu(title, text, items, nodes = []) {
   ov.replaceChildren(); ov.hidden = false;
   const m = document.createElement('div'); m.className = 'menu';
   const t = document.createElement('div'); t.textContent = title; m.append(t);
   if (text) { const p = document.createElement('p'); p.innerHTML = text; m.append(p); }
+  nodes.forEach(n => m.append(n));
   items.forEach(([label, fn, primary]) => {
     const b = document.createElement('button'); b.textContent = label;
     if (primary) b.className = 'primary';
     b.addEventListener('click', fn); m.append(b);
   });
   ov.append(m);
-  m.querySelector('button')?.focus({ preventScroll: true });
+  (m.querySelector('input') || m.querySelector('button'))?.focus({ preventScroll: true });
+}
+
+// Tulokset: tallennetaan selaimeen (localStorage), kymmenen parasta
+const SKEY = 'tetris.scores', NKEY = 'tetris.name';
+let scores = [];
+try {
+  const a = JSON.parse(localStorage.getItem(SKEY));
+  if (Array.isArray(a)) scores = a.filter(s => s && typeof s.score === 'number').slice(0, 10);
+} catch (e) {}
+const qualifies = s => s > 0 && (scores.length < 10 || s > scores[scores.length - 1].score);
+function addScore(name) {
+  const entry = { name, score, lines, level };
+  scores.push(entry);
+  scores.sort((a, b) => b.score - a.score);
+  scores = scores.slice(0, 10);
+  try { localStorage.setItem(SKEY, JSON.stringify(scores)); localStorage.setItem(NKEY, name); } catch (e) {}
+  return entry;
+}
+function scoreList(hl) {
+  const list = document.createElement('div'); list.className = 'list';
+  if (!scores.length) { list.textContent = 'ei vielä tuloksia'; return list; }
+  scores.forEach((s, i) => {
+    const r = document.createElement('div'); r.className = 'srow' + (s === hl ? ' me' : '');
+    for (const [cls, txt] of [['rk', i + 1 + '.'], ['nm', s.name], ['sc', fmt(s.score)]]) {
+      const c = document.createElement('span'); c.className = cls; c.textContent = txt; r.append(c);
+    }
+    list.append(r);
+  });
+  return list;
+}
+function showScores() { showMenu('parhaat tulokset', '', [['takaisin', showPauseMenu, true]], [scoreList()]); }
+function showGameOver(saved) {
+  const nodes = [];
+  let note = `pisteet ${fmt(score)} · rivit ${lines}`;
+  const canSave = !saved && qualifies(score);
+  if (canSave) {
+    const form = document.createElement('div'); form.className = 'form';
+    const inp = document.createElement('input');
+    inp.id = 'nick'; inp.maxLength = 12; inp.placeholder = 'nimimerkki'; inp.autocomplete = 'off';
+    try { inp.value = localStorage.getItem(NKEY) || ''; } catch (e) {}
+    const save = document.createElement('button'); save.textContent = 'tallenna'; save.className = 'primary';
+    const go = () => { showGameOver(addScore(inp.value.trim().slice(0, 12) || 'nimetön')); document.activeElement?.blur(); };
+    save.addEventListener('click', go);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    form.append(inp, save); nodes.push(form);
+  } else if (!saved && score > 0) note += '<br>ei yltänyt kymmenen parhaan joukkoon';
+  nodes.push(scoreList(saved));
+  showMenu('game over', note, [['uusi peli', start, !canSave]], nodes);
 }
 
 function start() {
   clearInterval(countTimer);
   releaseAll();
   grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-  score = 0; lines = 0; level = 1; dropTimer = 0; piece = null; nextType = null; counts.fill(0);
+  score = 0; lines = 0; level = 1; dropTimer = 0; piece = null; nextType = null; counts.fill(0); clearFx = null; popups.length = 0;
   updateUI(); drawNext();
   state = 'count';
   let n = 3; showDigit(n);
@@ -252,16 +363,16 @@ function pause() {
   state = 'pause'; releaseAll(); showPauseMenu();
 }
 function showPauseMenu() {
-  showMenu('paused', '', [['resume', resume, true], ['ohjeet', showHelp], ['uusi peli', start]]);
+  showMenu('paused', '', [['resume', resume, true], ['tulokset', showScores], ['ohjeet', showHelp], ['uusi peli', start]]);
 }
 function showHelp() {
-  showMenu('ohjeet', '← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>väli pudota heti<br>P tauko',
+  showMenu('ohjeet', '← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>väli pudota heti<br>P tauko<br>rivit 1/2/3/4: 100/300/500/800 × taso',
     [['takaisin', showPauseMenu, true]]);
 }
 function resume() { if (state !== 'pause') return; hideOv(); state = 'play'; last = performance.now(); }
 function gameOver() {
   state = 'over'; releaseAll();
-  showMenu('game over', `pisteet ${fmt(score)}<br>rivit ${lines}`, [['uusi peli', start, true]]);
+  showGameOver();
 }
 
 function loop(t) {
@@ -269,6 +380,10 @@ function loop(t) {
   if (state === 'play') {
     dropTimer += dt;
     if (dropTimer > Math.max(80, 800 - (level - 1) * 70)) softDrop();
+  } else if (state === 'clear') stepClear(dt);
+  if (state !== 'pause') {
+    popups.forEach(p => p.t += dt);
+    while (popups.length && popups[0].t > 1000) popups.shift();
   }
   draw();
   requestAnimationFrame(loop);
@@ -307,6 +422,7 @@ function release(code) {
 function releaseAll() { Object.keys(holds).forEach(release); }
 document.addEventListener('keydown', e => {
   if (!ACTIONS.includes(e.code)) return;
+  if (e.target.tagName === 'INPUT') return; // nimimerkkiä kirjoitettaessa
   if (e.target.tagName === 'BUTTON' && e.code === 'Space') return; // väli painikkeella = klikkaus
   e.preventDefault();
   if (!e.repeat) press(e.code);
