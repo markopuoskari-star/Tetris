@@ -6,63 +6,81 @@
 <title>Tetris</title>
 <style>
   :root {
-    /* Layout: pelialue vasemmalla, oikealla seuraava palikka, tilarivit ja ohjeet; skaalautuu koko ruudulle */
-    --bg:#d6e4f7; --stripe:#cadbf2; --frame:#6b78a8; --panel:#dbeaff; --well:#bfd0ec;
-    --ink:#6b78a8; --ink-strong:#0c0c14;
-    --font:"Squada One", "Arial Narrow", system-ui, sans-serif; color-scheme:light;
+    /* Layout: pelialue vasemmalla, oikealla seuraava palikka, tilakortti ja ohjeet; skaalautuu ikkunaan */
+    --bg-a:#eef3fc; --bg-b:#d9e4f6; --card:rgba(255,255,255,.72); --card-line:rgba(255,255,255,.9);
+    --well-a:#f7faff; --well-b:#e2eaf8; --grid:rgba(60,84,140,.09);
+    --ink:#1c2333; --muted:#6a7692; --line:rgba(40,60,110,.12);
+    --accent:#4c6fff; --accent-2:#7a5cff; --shadow:0 10px 30px rgba(40,60,120,.14), 0 2px 6px rgba(40,60,120,.08);
+    --font:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif; color-scheme:light;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;padding-inline:16px;padding-block:20px;font-family:var(--font);color:var(--ink);
-       background:repeating-linear-gradient(135deg,var(--bg) 0 6px,var(--stripe) 6px 8px);
+  body{margin:0;padding-inline:16px;padding-block:20px;font-family:var(--font);color:var(--ink);font-weight:500;
+       background:linear-gradient(160deg,var(--bg-a),var(--bg-b)) fixed;
        display:flex;flex-direction:column;align-items:center;gap:12px;user-select:none;-webkit-user-select:none}
   #stage{flex:none}
-  #game{width:662px;height:660px;display:flex;gap:10px;transform-origin:0 0}
-  .box{border:6px solid var(--frame);background:var(--panel)}
-  #boardBox{position:relative;width:372px;height:660px;background:var(--well)}
-  #board{display:block}
-  #side{width:280px;display:flex;flex-direction:column;gap:12px}
-  #nextBox{height:146px;display:flex;align-items:center;justify-content:center}
-  #stats{display:flex;flex-direction:column;border:6px solid var(--frame);background:var(--panel)}
-  .row{display:flex;justify-content:space-between;align-items:center;height:62px;padding-inline:8px;
-       font-size:36px;border-bottom:6px solid var(--frame)}
+  #game{width:662px;height:660px;display:flex;gap:16px;transform-origin:0 0}
+  .box{background:var(--card);border:1px solid var(--card-line);border-radius:22px;box-shadow:var(--shadow);
+       backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  #boardBox{position:relative;width:372px;height:660px;padding:6px;background:linear-gradient(180deg,var(--well-a),var(--well-b))}
+  #board{display:block;border-radius:16px}
+  #side{width:274px;display:flex;flex-direction:column;gap:14px}
+  #nextBox{position:relative;height:146px;display:flex;align-items:center;justify-content:center}
+  .cap{position:absolute;top:12px;left:16px;font-size:12px;font-weight:700;letter-spacing:.12em;
+       text-transform:uppercase;color:var(--muted)}
+  #stats{display:flex;flex-direction:column;padding-inline:18px}
+  .row{display:flex;justify-content:space-between;align-items:baseline;height:64px;align-items:center;
+       border-bottom:1px solid var(--line)}
   .row:last-child{border-bottom:0}
-  .row b{font-weight:400;color:var(--ink-strong);font-variant-numeric:tabular-nums}
-  #pauseBtn{align-self:center;font:inherit;font-size:36px;color:var(--ink);background:none;border:0;
-            cursor:pointer;padding:4px 12px}
-  #pauseBtn::before,#pauseBtn::after{content:"";display:inline-block;width:8px;height:8px;
-            background:var(--ink);margin-inline:12px;vertical-align:middle}
-  #help{font-size:22px;line-height:1.35;padding:10px 14px;flex:1}
-  #help b{font-weight:400;color:var(--ink-strong)}
-  #ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:10px;background:rgba(107,120,168,.35)}
+  .row span{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .row b{font-size:34px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  #pauseBtn{font:inherit;font-size:15px;font-weight:700;color:var(--ink);background:var(--card);
+            border:1px solid var(--card-line);border-radius:999px;padding:12px 0;cursor:pointer;
+            box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s}
+  #pauseBtn:hover{transform:translateY(-1px)}
+  #help{padding:16px 18px;flex:1;display:flex;flex-direction:column;gap:9px;font-size:14px;color:var(--muted)}
+  #help div{display:flex;align-items:center;gap:8px}
+  kbd{font:inherit;font-size:12px;font-weight:700;color:var(--ink);background:#fff;border:1px solid var(--line);
+      border-bottom-width:2px;border-radius:7px;padding:2px 7px;min-width:26px;text-align:center}
+  #ov{position:absolute;inset:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:10px;background:rgba(238,243,252,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:16px}
   #ov[hidden]{display:none}
-  #ov .digit{font-size:120px;color:var(--ink);line-height:1}
-  #ov .menu{width:320px;background:var(--panel);border:6px solid var(--frame);padding:14px 14px 18px;
-            display:flex;flex-direction:column;align-items:center;gap:10px;font-size:32px;text-align:center}
-  #ov .menu p{margin:0;font-size:26px;line-height:1.3}
-  #ov button,#pad button{font:inherit;color:var(--ink);background:var(--panel);border:6px solid var(--frame);cursor:pointer}
-  #ov .menu{max-height:100%;overflow:auto}
+  #ov .digit{font-size:150px;font-weight:800;line-height:1;color:var(--accent);animation:pop .8s ease-out}
+  @keyframes pop{from{transform:scale(1.5);opacity:0}30%{opacity:1}to{transform:scale(.9);opacity:.85}}
+  #ov .menu{width:310px;max-height:100%;overflow:auto;background:#fff;border:1px solid var(--line);
+            border-radius:22px;box-shadow:var(--shadow);padding:22px 18px 18px;
+            display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;animation:rise .22s ease-out}
+  @keyframes rise{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+  #ov .menu .ttl{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-bottom:2px}
+  #ov .menu p{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
+  #ov button{width:100%;font:inherit;font-size:16px;font-weight:700;color:var(--ink);background:#f1f4fb;
+             border:1px solid var(--line);border-radius:14px;padding:13px 0;cursor:pointer;
+             transition:transform .12s,background .12s,box-shadow .12s}
+  #ov button:hover{background:#e7ecf8;transform:translateY(-1px)}
+  #ov button.primary{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+             box-shadow:0 6px 16px rgba(76,111,255,.35)}
+  #ov button.primary:hover{background:linear-gradient(135deg,#5b7bff,#8a6dff)}
   #ov .form{display:flex;gap:8px;width:100%}
-  #ov .form input{flex:1;min-width:0;font:inherit;font-size:28px;color:var(--ink-strong);background:#fff;
-                  border:6px solid var(--frame);padding:0 8px;border-radius:0}
-  #ov .form button{width:auto;padding-inline:12px}
-  #ov .list{width:100%;font-size:24px;line-height:1.25;text-align:left}
-  #ov .srow{display:flex;gap:8px;padding:1px 6px}
-  #ov .srow.me{background:var(--well);color:var(--ink-strong)}
-  #ov .rk{width:34px;flex:none}
-  #ov .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #ov .sc{font-variant-numeric:tabular-nums}
-  #ov button{width:100%;font-size:34px;padding:4px 0}
-  #ov button.primary{color:var(--ink-strong)}
-  #ov button:hover,#pauseBtn:hover{color:var(--ink-strong)}
-  button:focus-visible{outline:3px solid var(--ink-strong);outline-offset:2px}
+  #ov .form input{flex:1;min-width:0;font:inherit;font-size:16px;font-weight:600;color:var(--ink);background:#fff;
+                  border:1px solid var(--line);border-radius:14px;padding:0 14px;outline:none}
+  #ov .form input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(76,111,255,.2)}
+  #ov .form button{width:auto;padding-inline:16px}
+  #ov .list{width:100%;font-size:15px;text-align:left;display:flex;flex-direction:column;gap:2px;color:var(--muted)}
+  #ov .srow{display:flex;gap:10px;align-items:center;padding:6px 10px;border-radius:10px}
+  #ov .srow.me{background:rgba(76,111,255,.12);color:var(--ink);font-weight:800}
+  #ov .rk{width:22px;flex:none;font-weight:700;color:var(--muted)}
+  #ov .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+  #ov .sc{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink)}
+  button:focus-visible{outline:3px solid rgba(76,111,255,.55);outline-offset:2px}
   #pad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:420px}
-  #pad button{padding:12px 0;font-size:26px;touch-action:none;-webkit-user-select:none}
+  #pad button{font:inherit;font-size:22px;color:var(--ink);background:var(--card);border:1px solid var(--card-line);
+              border-radius:16px;box-shadow:var(--shadow);padding:14px 0;touch-action:none;-webkit-user-select:none;cursor:pointer}
+  #pad button:active{transform:scale(.95)}
   @media (hover:hover) and (pointer:fine){ #pad{display:none} }
   @media (hover:none),(pointer:coarse){ #help{display:none} }
+  @media (prefers-reduced-motion:reduce){ #ov .digit,#ov .menu{animation:none} }
 </style>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Squada+One&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap">
 <div id="stage">
   <div id="game">
     <div id="boardBox" class="box">
@@ -70,15 +88,19 @@
       <div id="ov" hidden></div>
     </div>
     <div id="side">
-      <div id="nextBox" class="box"><canvas id="next" width="200" height="120"></canvas></div>
-      <div id="stats">
-        <div class="row"><span>level</span><b id="level">1</b></div>
-        <div class="row"><span>score</span><b id="score">0</b></div>
-        <div class="row"><span>lines</span><b id="lines">0</b></div>
+      <div id="nextBox" class="box"><span class="cap">Seuraava</span><canvas id="next" width="200" height="120"></canvas></div>
+      <div id="stats" class="box">
+        <div class="row"><span>Taso</span><b id="level">1</b></div>
+        <div class="row"><span>Pisteet</span><b id="score">0</b></div>
+        <div class="row"><span>Rivit</span><b id="lines">0</b></div>
       </div>
-      <button id="pauseBtn">pause</button>
+      <button id="pauseBtn">Tauko</button>
       <div id="help" class="box">
-        <b>←  →</b> liikuta<br><b>↑</b> kierrä<br><b>↓</b> pudota hitaasti<br><b>väli</b> pudota heti<br><b>P</b> tauko
+        <div><kbd>←</kbd><kbd>→</kbd> liikuta</div>
+        <div><kbd>↑</kbd> kierrä</div>
+        <div><kbd>↓</kbd> pudota hitaasti</div>
+        <div><kbd>Väli</kbd> pudota heti</div>
+        <div><kbd>P</kbd> tauko</div>
       </div>
     </div>
   </div>
@@ -276,7 +298,7 @@ function draw() {
   ctx.save();
   ctx.translate(0, shake);
   // himmeä ruudukko
-  ctx.strokeStyle = 'rgba(107,120,168,.2)'; ctx.lineWidth = 1; ctx.beginPath();
+  ctx.strokeStyle = 'rgba(60,84,140,.09)'; ctx.lineWidth = 1; ctx.beginPath();
   for (let x = 1; x < COLS; x++) { ctx.moveTo(x * SZ + .5, 0); ctx.lineTo(x * SZ + .5, ROWS * SZ); }
   for (let y = 1; y < ROWS; y++) { ctx.moveTo(0, y * SZ + .5); ctx.lineTo(COLS * SZ, y * SZ + .5); }
   ctx.stroke();
@@ -301,7 +323,7 @@ function draw() {
     }
     shape(piece.vx, piece.vy, piece.ra);
   }
-  ctx.font = '46px "Squada One", "Arial Narrow", sans-serif';
+  ctx.font = '800 40px "Manrope", system-ui, sans-serif';
   ctx.textAlign = 'center'; ctx.lineWidth = 6; ctx.lineJoin = 'round';
   popups.forEach(p => {
     const a = Math.max(0, 1 - Math.max(0, p.t - 500) / 500);
@@ -310,10 +332,10 @@ function draw() {
     ctx.strokeStyle = '#fff'; ctx.strokeText(p.text, COLS * SZ / 2, y);
     ctx.fillStyle = '#0c0c14'; ctx.fillText(p.text, COLS * SZ / 2, y);
     if (p.sub) {
-      ctx.font = '32px "Squada One", "Arial Narrow", sans-serif'; ctx.lineWidth = 5;
+      ctx.font = '800 26px "Manrope", system-ui, sans-serif'; ctx.lineWidth = 5;
       ctx.strokeStyle = '#fff'; ctx.strokeText(p.sub, COLS * SZ / 2, y + 34);
       ctx.fillStyle = '#e01414'; ctx.fillText(p.sub, COLS * SZ / 2, y + 34);
-      ctx.font = '46px "Squada One", "Arial Narrow", sans-serif'; ctx.lineWidth = 6;
+      ctx.font = '800 40px "Manrope", system-ui, sans-serif'; ctx.lineWidth = 6;
     }
   });
   ctx.globalAlpha = 1;
@@ -335,7 +357,7 @@ function showDigit(n) {
 function showMenu(title, text, items, nodes = []) {
   ov.replaceChildren(); ov.hidden = false;
   const m = document.createElement('div'); m.className = 'menu';
-  const t = document.createElement('div'); t.textContent = title; m.append(t);
+  const t = document.createElement('div'); t.textContent = title; t.className = 'ttl'; m.append(t);
   if (text) { const p = document.createElement('p'); p.innerHTML = text; m.append(p); }
   nodes.forEach(n => m.append(n));
   items.forEach(([label, fn, primary]) => {
@@ -365,7 +387,7 @@ function addScore(name) {
 }
 function scoreList(hl) {
   const list = document.createElement('div'); list.className = 'list';
-  if (!scores.length) { list.textContent = 'ei vielä tuloksia'; return list; }
+  if (!scores.length) { list.textContent = 'Ei vielä tuloksia'; return list; }
   scores.forEach((s, i) => {
     const r = document.createElement('div'); r.className = 'srow' + (s === hl ? ' me' : '');
     for (const [cls, txt] of [['rk', i + 1 + '.'], ['nm', s.name], ['sc', fmt(s.score)]]) {
@@ -375,24 +397,24 @@ function scoreList(hl) {
   });
   return list;
 }
-function showScores() { showMenu('parhaat tulokset', '', [['takaisin', showPauseMenu, true]], [scoreList()]); }
+function showScores() { showMenu('Parhaat tulokset', '', [['Takaisin', showPauseMenu, true]], [scoreList()]); }
 function showGameOver(saved) {
   const nodes = [];
-  let note = `pisteet ${fmt(score)} · rivit ${lines}`;
+  let note = `${fmt(score)} pistettä · ${lines} riviä`;
   const canSave = !saved && qualifies(score);
   if (canSave) {
     const form = document.createElement('div'); form.className = 'form';
     const inp = document.createElement('input');
-    inp.id = 'nick'; inp.maxLength = 12; inp.placeholder = 'nimimerkki'; inp.autocomplete = 'off';
+    inp.id = 'nick'; inp.maxLength = 12; inp.placeholder = 'Nimimerkki'; inp.autocomplete = 'off';
     try { inp.value = localStorage.getItem(NKEY) || ''; } catch (e) {}
-    const save = document.createElement('button'); save.textContent = 'tallenna'; save.className = 'primary';
+    const save = document.createElement('button'); save.textContent = 'Tallenna'; save.className = 'primary';
     const go = () => { showGameOver(addScore(inp.value.trim().slice(0, 12) || 'nimetön')); document.activeElement?.blur(); };
     save.addEventListener('click', go);
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
     form.append(inp, save); nodes.push(form);
-  } else if (!saved && score > 0) note += '<br>ei yltänyt kymmenen parhaan joukkoon';
+  } else if (!saved && score > 0) note += '<br>Ei yltänyt kymmenen parhaan joukkoon';
   nodes.push(scoreList(saved));
-  showMenu('game over', note, [['uusi peli', start, !canSave]], nodes);
+  showMenu('Peli ohi', note, [['Uusi peli', start, !canSave]], nodes);
 }
 
 function start() {
@@ -415,11 +437,11 @@ function pause() {
   state = 'pause'; releaseAll(); showPauseMenu();
 }
 function showPauseMenu() {
-  showMenu('paused', '', [['resume', resume, true], ['tulokset', showScores], ['ohjeet', showHelp], ['uusi peli', start]]);
+  showMenu('Tauko', '', [['Jatka', resume, true], ['Tulokset', showScores], ['Ohjeet', showHelp], ['Uusi peli', start]]);
 }
 function showHelp() {
-  showMenu('ohjeet', '← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>väli pudota heti<br>P tauko<br>rivit 1/2/3/4: 100/300/500/800 × taso<br>peräkkäiset 4 rivin poistot: kombo +50 % kerrallaan (max ×3)',
-    [['takaisin', showPauseMenu, true]]);
+  showMenu('Ohjeet', '← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>Väli pudota heti<br>P tauko<br><br>Rivit 1 / 2 / 3 / 4: 100 / 300 / 500 / 800 × taso<br>Peräkkäiset 4 rivin poistot: kombo +50 % kerrallaan (enintään ×3)',
+    [['Takaisin', showPauseMenu, true]]);
 }
 function resume() { if (state !== 'pause') return; hideOv(); state = 'play'; last = performance.now(); }
 function gameOver() {
@@ -509,6 +531,7 @@ function fit() {
 }
 addEventListener('resize', fit);
 
+document.fonts?.load('800 40px Manrope');
 fit();
 start();
 last = performance.now();
