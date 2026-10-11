@@ -78,21 +78,23 @@
   #pad button:active{transform:scale(.95)}
   #pad{display:none}
   /* Mobiilitila: tilakortit laudan päälle, isot painikkeet alle, ohjaus myös vetämällä laudalla */
-  body.compact{padding-block:10px;gap:10px}
+  body.compact{padding-inline:8px;padding-block:6px;gap:0}
   body.compact{touch-action:none}
-  #hint{display:none;font-size:13px;font-weight:600;color:var(--muted);text-align:center}
+  #hint{display:none;position:absolute;left:0;right:0;bottom:22px;z-index:1;pointer-events:none;font-size:13px;font-weight:700;
+        color:var(--muted);text-align:center;transition:opacity .6s}
+  #hint.gone{opacity:0}
   body.compact #hint{display:block}
   body.compact #help,body.compact .cap{display:none}
-  body.compact #game{width:372px;height:auto;flex-direction:column;gap:10px}
-  body.compact #side{order:-1;width:100%;flex-direction:row;gap:10px;height:84px}
-  body.compact #nextBox{width:108px;height:84px;flex:none;border-radius:18px}
-  body.compact #next{width:96px;height:auto}
-  body.compact #stats{flex:1;flex-direction:row;padding-inline:6px;border-radius:18px}
+  body.compact #game{width:372px;height:auto;flex-direction:column;gap:8px}
+  body.compact #side{order:-1;width:100%;flex-direction:row;gap:8px;height:64px}
+  body.compact #nextBox{width:96px;height:64px;flex:none;border-radius:16px}
+  body.compact #next{width:76px;height:auto}
+  body.compact #stats{flex:1;flex-direction:row;padding-inline:6px;border-radius:16px}
   body.compact .row{flex:1;flex-direction:column;justify-content:center;gap:2px;height:auto;border-bottom:0;border-right:1px solid var(--line)}
   body.compact .row:last-child{border-right:0}
-  body.compact .row span{font-size:10px}
-  body.compact .row b{font-size:24px}
-  body.compact #pauseBtn{flex:none;width:64px;height:84px;border-radius:18px;padding:0;font-size:13px}
+  body.compact .row span{font-size:9px}
+  body.compact .row b{font-size:21px}
+  body.compact #pauseBtn{flex:none;width:56px;height:64px;border-radius:16px;padding:0;font-size:12px}
   #board{touch-action:none}
   html{touch-action:manipulation;overscroll-behavior:none}
   @media (prefers-reduced-motion:reduce){ #ov .digit,#ov .menu{animation:none} }
@@ -102,6 +104,7 @@
   <div id="game">
     <div id="boardBox" class="box">
       <canvas id="board" width="360" height="648"></canvas>
+      <div id="hint">Napauta: kierrä · Vedä: liikuta<br>Pyyhkäise alas: pudota</div>
       <div id="ov" hidden></div>
     </div>
     <div id="side">
@@ -122,7 +125,6 @@
     </div>
   </div>
 </div>
-<div id="hint">Napauta: kierrä · Vedä: liikuta · Pyyhkäise alas: pudota</div>
 <div id="pad">
   <button data-k="ArrowLeft" aria-label="Vasen">◀</button>
   <button data-k="ArrowRight" aria-label="Oikea">▶</button>
@@ -575,17 +577,18 @@ $('pauseBtn').addEventListener('click', e => { state === 'pause' ? resume() : pa
 function fit() {
   const mobile = matchMedia('(pointer:coarse)').matches || innerWidth <= 720;
   document.body.classList.toggle('compact', mobile);
-  const g = $('game'), hint = $('hint');
+  const g = $('game');
   g.style.transform = 'none';
   const W = g.offsetWidth, H = g.offsetHeight;
-  const padH = mobile ? hint.offsetHeight + 10 : 0;
-  const s = Math.max(.4, Math.min(1, (innerWidth - 32) / W, (innerHeight - (mobile ? 20 : 40) - padH) / H));
+  const vw = innerWidth, vh = window.visualViewport?.height || innerHeight;   // näkyvä alue ilman selaimen palkkeja
+  const s = Math.max(.3, Math.min(1, (vw - (mobile ? 16 : 32)) / W, (vh - (mobile ? 12 : 40)) / H));
   g.style.transform = `scale(${s})`;
   $('stage').style.width = W * s + 'px';
   $('stage').style.height = H * s + 'px';
 }
 addEventListener('resize', fit);
 addEventListener('orientationchange', fit);
+window.visualViewport?.addEventListener('resize', fit);
 
 // Kosketusohjaus laudalla: napautus kiertää, vaakavedolla liikutetaan, alasvedolla pudotetaan,
 // nopea alaspyyhkäisy pudottaa heti
@@ -597,6 +600,7 @@ const gestureOk = e => e.pointerType !== 'mouse' && document.body.classList.cont
 document.addEventListener('pointerdown', e => {
   if (!gestureOk(e)) return;
   e.preventDefault();
+  $('hint').classList.add('gone');
   gs = { x0: e.clientX, y0: e.clientY, ax: e.clientX, ay: e.clientY, t0: performance.now(), moved: false };
 });
 document.addEventListener('pointermove', e => {
@@ -623,6 +627,7 @@ document.addEventListener('pointerup', e => {
 document.addEventListener('pointercancel', () => { gs = null; });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { releaseAll(); pause(); } });
 
+setTimeout(() => $('hint').classList.add('gone'), 9000);
 document.fonts?.load('800 40px Manrope');
 fit();
 start();
