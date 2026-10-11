@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tetris</title>
+<style>
+  body { margin:0; background:#111; color:#eee; font-family:sans-serif;
+         display:flex; justify-content:center; align-items:center; min-height:100vh; }
+  #wrap { display:flex; gap:20px; padding:16px; }
+  canvas { background:#000; border:2px solid #555; }
+  #side { width:140px; }
+  h1 { margin:0 0 12px; font-size:24px; }
+  p { margin:6px 0; }
+  .small { font-size:12px; color:#aaa; line-height:1.6; }
+  button { margin-top:10px; padding:6px 12px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="board" width="240" height="480"></canvas>
+  <div id="side">
+    <h1>Tetris</h1>
+    <p>Pisteet: <b id="score">0</b></p>
+    <p>Rivit: <b id="lines">0</b></p>
+    <p>Taso: <b id="level">1</b></p>
+    <canvas id="next" width="100" height="100"></canvas>
+    <button id="restart">Uusi peli</button>
+    <p class="small">← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>Väli pudota heti<br>P tauko</p>
+  </div>
+</div>
+<script>
+const COLS = 10, ROWS = 20, SZ = 24;
+const ctx = document.getElementById('board').getContext('2d');
+const nctx = document.getElementById('next').getContext('2d');
+const COLORS = [null,'#0ff','#00f','#f90','#ff0','#0f0','#a0f','#f00'];
+const SHAPES = [
+  null,
+  [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], // I
+  [[2,0,0],[2,2,2],[0,0,0]],                 // J
+  [[0,0,3],[3,3,3],[0,0,0]],                 // L
+  [[4,4],[4,4]],                             // O
+  [[0,5,5],[5,5,0],[0,0,0]],                 // S
+  [[0,6,0],[6,6,6],[0,0,0]],                 // T
+  [[7,7,0],[0,7,7],[0,0,0]]                  // Z
+];
+
+let grid, piece, nextType, score, lines, level, dropTimer, last, over, paused;
+
+const rand = () => 1 + Math.floor(Math.random() * 7);
+const rotate = m => m[0].map((_, i) => m.map(r => r[i]).reverse());
+
+function newPiece(type) {
+  const m = SHAPES[type].map(r => r.slice());
+  return { m, x: Math.floor((COLS - m[0].length) / 2), y: 0 };
+}
+
+function collides(m, px, py) {
+  for (let y = 0; y < m.length; y++)
+    for (let x = 0; x < m[y].length; x++) {
+      if (!m[y][x]) continue;
+      const nx = px + x, ny = py + y;
+      if (nx < 0 || nx >= COLS || ny >= ROWS) return true;
+      if (ny >= 0 && grid[ny][nx]) return true;
+    }
+  return false;
+}
+
+function spawn() {
+  piece = newPiece(nextType);
+  nextType = rand();
+  drawNext();
+  if (collides(piece.m, piece.x, piece.y)) over = true;
+}
+
+function lock() {
+  piece.m.forEach((row, y) => row.forEach((v, x) => {
+    if (v && piece.y + y >= 0) grid[piece.y + y][piece.x + x] = v;
+  }));
+  let cleared = 0;
+  for (let y = ROWS - 1; y >= 0; y--) {
+    if (grid[y].every(v => v)) {
+      grid.splice(y, 1);
+      grid.unshift(Array(COLS).fill(0));
+      cleared++; y++;
+    }
+  }
+  if (cleared) {
+    score += [0,100,300,500,800][cleared] * level;
+    lines += cleared;
+    level = 1 + Math.floor(lines / 10);
+    updateUI();
+  }
+  spawn();
+}
+
+function move(dx) {
+  if (!collides(piece.m, piece.x + dx, piece.y)) piece.x += dx;
+}
+
+function softDrop() {
+  if (!collides(piece.m, piece.x, piece.y + 1)) piece.y++;
+  else lock();
+  dropTimer = 0;
+}
+
+function hardDrop() {
+  let d = 0;
+  while (!collides(piece.m, piece.x, piece.y + 1)) { piece.y++; d++; }
+  score += d * 2;
+  updateUI();
+  lock();
+  dropTimer = 0;
+}
+
+function rot() {
+  const r = rotate(piece.m);
+  for (const k of [0, -1, 1, -2, 2]) { // yksinkertainen seinäpotku
+    if (!collides(r, piece.x + k, piece.y)) { piece.m = r; piece.x += k; return; }
+  }
+}
+
+function cell(c, x, y, v, s = SZ) {
+  c.fillStyle = COLORS[v];
+  c.fillRect(x * s, y * s, s, s);
+  c.strokeStyle = 'rgba(0,0,0,.4)';
+  c.strokeRect(x * s + .5, y * s + .5, s - 1, s - 1);
+}
+
+function drawNext() {
+  nctx.clearRect(0, 0, 100, 100);
+  const m = SHAPES[nextType], s = 20;
+  const ox = (5 - m[0].length) / 2, oy = (5 - m.length) / 2;
+  m.forEach((row, y) => row.forEach((v, x) => v && cell(nctx, x + ox, y + oy, v, s)));
+}
+
+function draw() {
+  ctx.clearRect(0, 0, COLS * SZ, ROWS * SZ);
+  grid.forEach((row, y) => row.forEach((v, x) => v && cell(ctx, x, y, v)));
+  if (!over) {
+    // haamu
+    let gy = piece.y;
+    while (!collides(piece.m, piece.x, gy + 1)) gy++;
+    ctx.globalAlpha = .2;
+    piece.m.forEach((row, y) => row.forEach((v, x) => v && cell(ctx, piece.x + x, gy + y, v)));
+    ctx.globalAlpha = 1;
+    piece.m.forEach((row, y) => row.forEach((v, x) => v && cell(ctx, piece.x + x, piece.y + y, v)));
+  }
+  if (over || paused) {
+    ctx.fillStyle = 'rgba(0,0,0,.7)';
+    ctx.fillRect(0, 0, COLS * SZ, ROWS * SZ);
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(over ? 'Peli ohi' : 'Tauko', COLS * SZ / 2, ROWS * SZ / 2);
+  }
+}
+
+function updateUI() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('lines').textContent = lines;
+  document.getElementById('level').textContent = level;
+}
+
+function loop(t) {
+  const dt = t - last; last = t;
+  if (!over && !paused) {
+    dropTimer += dt;
+    if (dropTimer > Math.max(80, 800 - (level - 1) * 70)) softDrop();
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function start() {
+  grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  score = 0; lines = 0; level = 1; dropTimer = 0; over = false; paused = false;
+  nextType = rand();
+  spawn();
+  updateUI();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyP') { paused = !paused; return; }
+  if (over || paused) return;
+  switch (e.code) {
+    case 'ArrowLeft': move(-1); break;
+    case 'ArrowRight': move(1); break;
+    case 'ArrowDown': softDrop(); score++; updateUI(); break;
+    case 'ArrowUp': rot(); break;
+    case 'Space': hardDrop(); break;
+    default: return;
+  }
+  e.preventDefault();
+});
+document.getElementById('restart').onclick = e => { start(); e.target.blur(); };
+
+start();
+last = performance.now();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
