@@ -180,18 +180,46 @@ function start() {
   updateUI();
 }
 
-document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { paused = !paused; return; }
-  if (over || paused) return;
-  switch (e.code) {
+function act(code) {
+  if (code === 'KeyP') { paused = !paused; return true; }
+  if (over || paused) return false;
+  switch (code) {
     case 'ArrowLeft': move(-1); break;
     case 'ArrowRight': move(1); break;
     case 'ArrowDown': softDrop(); score++; updateUI(); break;
     case 'ArrowUp': rot(); break;
     case 'Space': hardDrop(); break;
-    default: return;
+    default: return false;
   }
+  return true;
+}
+const ACTIONS = ['ArrowLeft','ArrowRight','ArrowDown','ArrowUp','Space','KeyP'];
+// Pohjassa pidetty liikenappi toistuu: pieni viive, sitten tasainen toisto
+const REPEAT = { ArrowLeft: 70, ArrowRight: 70, ArrowDown: 50 };
+const holds = {};
+function press(code) {
+  if (holds[code]) return;
+  act(code);
+  const h = holds[code] = {};
+  if (REPEAT[code]) h.t = setTimeout(() => { h.i = setInterval(() => act(code), REPEAT[code]); }, 170);
+}
+function release(code) {
+  const h = holds[code];
+  if (!h) return;
+  clearTimeout(h.t); clearInterval(h.i);
+  delete holds[code];
+}
+function releaseAll() { Object.keys(holds).forEach(release); }
+document.addEventListener('keydown', e => {
+  if (!ACTIONS.includes(e.code)) return;
   e.preventDefault();
+  if (!e.repeat) press(e.code);
+});
+document.addEventListener('keyup', e => release(e.code));
+window.addEventListener('blur', releaseAll);
+document.querySelectorAll('[data-k]').forEach(b => {
+  b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); press(b.dataset.k); });
+  ['pointerup', 'pointercancel'].forEach(t => b.addEventListener(t, () => release(b.dataset.k)));
 });
 document.getElementById('restart').onclick = e => { start(); e.target.blur(); };
 
