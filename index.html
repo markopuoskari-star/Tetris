@@ -79,7 +79,9 @@
   #pad{display:none}
   /* Mobiilitila: tilakortit laudan päälle, isot painikkeet alle, ohjaus myös vetämällä laudalla */
   body.compact{padding-block:10px;gap:10px}
-  body.compact #pad{display:grid}
+  body.compact{touch-action:none}
+  #hint{display:none;font-size:13px;font-weight:600;color:var(--muted);text-align:center}
+  body.compact #hint{display:block}
   body.compact #help,body.compact .cap{display:none}
   body.compact #game{width:372px;height:auto;flex-direction:column;gap:10px}
   body.compact #side{order:-1;width:100%;flex-direction:row;gap:10px;height:84px}
@@ -91,7 +93,6 @@
   body.compact .row span{font-size:10px}
   body.compact .row b{font-size:24px}
   body.compact #pauseBtn{flex:none;width:64px;height:84px;border-radius:18px;padding:0;font-size:13px}
-  body.compact #pad button{padding:20px 0;font-size:26px;border-radius:18px}
   #board{touch-action:none}
   html{touch-action:manipulation;overscroll-behavior:none}
   @media (prefers-reduced-motion:reduce){ #ov .digit,#ov .menu{animation:none} }
@@ -121,6 +122,7 @@
     </div>
   </div>
 </div>
+<div id="hint">Napauta: kierrä · Vedä: liikuta · Pyyhkäise alas: pudota</div>
 <div id="pad">
   <button data-k="ArrowLeft" aria-label="Vasen">◀</button>
   <button data-k="ArrowRight" aria-label="Oikea">▶</button>
@@ -489,7 +491,7 @@ function showPauseMenu() {
   showMenu('Tauko', '', [['Jatka', resume, true], ['Tulokset', showScores], ['Ohjeet', showHelp], ['Uusi peli', start]]);
 }
 function showHelp() {
-  showMenu('Ohjeet', '← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>Väli pudota heti<br>P tauko<br><br>Kosketus: napauta lautaa = kierrä, vedä = liikuta, nopea alaspyyhkäisy = pudota heti<br><br>Rivit 1 / 2 / 3 / 4: 100 / 300 / 500 / 800 × taso<br>Peräkkäiset 4 rivin poistot: kombo +50 % kerrallaan (enintään ×3)',
+  showMenu('Ohjeet', '← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>Väli pudota heti<br>P tauko<br><br>Kosketus: napauta = kierrä, vedä sivulle = liikuta, vedä alas = pudota hitaasti, nopea alaspyyhkäisy = pudota heti<br><br>Rivit 1 / 2 / 3 / 4: 100 / 300 / 500 / 800 × taso<br>Peräkkäiset 4 rivin poistot: kombo +50 % kerrallaan (enintään ×3)',
     [['Takaisin', showPauseMenu, true]]);
 }
 function resume() { if (state !== 'pause') return; hideOv(); state = 'play'; last = performance.now(); }
@@ -573,15 +575,14 @@ $('pauseBtn').addEventListener('click', e => { state === 'pause' ? resume() : pa
 function fit() {
   const mobile = matchMedia('(pointer:coarse)').matches || innerWidth <= 720;
   document.body.classList.toggle('compact', mobile);
-  const g = $('game'), pad = $('pad');
+  const g = $('game'), hint = $('hint');
   g.style.transform = 'none';
   const W = g.offsetWidth, H = g.offsetHeight;
-  const padH = mobile ? pad.offsetHeight + 10 : 0;
+  const padH = mobile ? hint.offsetHeight + 10 : 0;
   const s = Math.max(.4, Math.min(1, (innerWidth - 32) / W, (innerHeight - (mobile ? 20 : 40) - padH) / H));
   g.style.transform = `scale(${s})`;
   $('stage').style.width = W * s + 'px';
   $('stage').style.height = H * s + 'px';
-  pad.style.width = W * s + 'px';
 }
 addEventListener('resize', fit);
 addEventListener('orientationchange', fit);
@@ -591,13 +592,14 @@ addEventListener('orientationchange', fit);
 const buzz = p => { try { navigator.vibrate?.(p); } catch (e) {} };
 const bd = $('board');
 let gs = null;
-bd.addEventListener('pointerdown', e => {
-  if (e.pointerType === 'mouse') return;
+// Ele toimii koko ruudulla, paitsi painikkeiden ja valikon päällä
+const gestureOk = e => e.pointerType !== 'mouse' && document.body.classList.contains('compact') && !e.target.closest('button, input, .menu');
+document.addEventListener('pointerdown', e => {
+  if (!gestureOk(e)) return;
   e.preventDefault();
-  try { bd.setPointerCapture(e.pointerId); } catch (err) {}
   gs = { x0: e.clientX, y0: e.clientY, ax: e.clientX, ay: e.clientY, t0: performance.now(), moved: false };
 });
-bd.addEventListener('pointermove', e => {
+document.addEventListener('pointermove', e => {
   if (!gs) return;
   const r = bd.getBoundingClientRect(), cw = r.width / COLS, ch = r.height / ROWS;
   while (e.clientX - gs.ax >= cw * .9) { act('ArrowRight'); gs.ax += cw; gs.moved = true; }
@@ -605,7 +607,7 @@ bd.addEventListener('pointermove', e => {
   while (e.clientY - gs.ay >= ch * .9) { act('ArrowDown'); gs.ay += ch; gs.moved = true; }
   if (e.clientY < gs.ay) gs.ay = e.clientY;
 });
-bd.addEventListener('pointerup', e => {
+document.addEventListener('pointerup', e => {
   if (!gs) return;
   const g = gs; gs = null;
   const ch = bd.getBoundingClientRect().height / ROWS;
@@ -613,7 +615,7 @@ bd.addEventListener('pointerup', e => {
   if (!g.moved && Math.hypot(dx, dy) < 12 && dt < 300) act('ArrowUp');
   else if (dy > ch * 3 && dt < 260 && Math.abs(dx) < dy * .5) act('Space');
 });
-bd.addEventListener('pointercancel', () => { gs = null; });
+document.addEventListener('pointercancel', () => { gs = null; });
 document.addEventListener('visibilitychange', () => { if (document.hidden) { releaseAll(); pause(); } });
 
 document.fonts?.load('800 40px Manrope');
