@@ -166,7 +166,8 @@ function spawn() {
   drawNext();
   if (collides(piece.m, piece.x, piece.y)) gameOver();
 }
-let shake = 0;           // lyhyt laudan tärähdys pikapudotuksessa
+const fxs = [];          // pikapudotuksen tehosteet: valojuova ja laskeutumishohde
+const FX_MS = 380;
 let combo = 0;           // peräkkäisten 4 rivin pudotusten määrä
 let clearFx = null;      // rivien poistoanimaatio
 const popups = [];       // kelluvat pistetekstit
@@ -216,8 +217,17 @@ function softDrop() {
 }
 function hardDrop() {
   let d = 0;
+  const startY = piece.vy;   // juova alkaa siitä, missä palikka näkyvästi oli
   while (!collides(piece.m, piece.x, piece.y + 1)) { piece.y++; d++; }
-  score += d * 2; updateUI(); shake = 6;
+  score += d * 2; updateUI();
+  const cols = {}, glow = [];
+  piece.m.forEach((row, yy) => row.forEach((v, xx) => {
+    if (!v) return;
+    glow.push({ x: piece.x + xx, y: piece.y + yy });
+    if (!cols[xx]) cols[xx] = { x: piece.x + xx, top: yy, v };
+  }));
+  if (d > 1) Object.values(cols).forEach(c => fxs.push({ kind: 'trail', x: c.x, y0: startY + c.top, y1: piece.y + c.top, v: c.v, t: 0 }));
+  fxs.push({ kind: 'glow', cells: glow, t: 0 });
   lock(); dropTimer = 0;
 }
 function rot() {
@@ -293,10 +303,29 @@ function drawClearingRow(y, p) {
     }
   }
 }
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
+function drawFx() {
+  fxs.forEach(f => {
+    const k = 1 - f.t / FX_MS;           // 1 -> 0
+    if (f.kind === 'trail') {
+      // pehmeä valojuova palikan putoamisreitillä, haalenee pois
+      const top = f.y0 * SZ, bot = (f.y1 + .5) * SZ;
+      const g = ctx.createLinearGradient(0, top, 0, bot);
+      g.addColorStop(0, hexA(COLORS[f.v], 0)); g.addColorStop(1, hexA(COLORS[f.v], .55 * k * k));
+      ctx.fillStyle = g; ctx.fillRect(f.x * SZ + 5, top, SZ - 10, bot - top);
+    } else {
+      // laskeutuneet ruudut hohtavat hetken
+      ctx.fillStyle = `rgba(255,255,255,${.6 * k * k})`;
+      f.cells.forEach(c => { rrect(ctx, c.x * SZ + 1, c.y * SZ + 1, SZ - 2, SZ - 2, 5); ctx.fill(); });
+    }
+  });
+}
 function draw() {
   ctx.clearRect(0, 0, COLS * SZ, ROWS * SZ);
   ctx.save();
-  ctx.translate(0, shake);
   // himmeä ruudukko
   ctx.strokeStyle = 'rgba(60,84,140,.09)'; ctx.lineWidth = 1; ctx.beginPath();
   for (let x = 1; x < COLS; x++) { ctx.moveTo(x * SZ + .5, 0); ctx.lineTo(x * SZ + .5, ROWS * SZ); }
@@ -308,6 +337,7 @@ function draw() {
     const dy = fx && fx.phase === 1 ? fx.off[y] * (1 - ease(Math.min(1, fx.t / FALL_MS))) : 0;
     row.forEach((v, x) => v && cell(ctx, x, y - dy, v));
   });
+  drawFx();
   if (piece && state !== 'idle') {
     const n = piece.m.length;
     const shape = (px, py, rot) => {
@@ -423,7 +453,7 @@ function start() {
   clearInterval(countTimer);
   releaseAll();
   grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-  score = 0; lines = 0; level = 1; dropTimer = 0; piece = null; nextType = null; counts.fill(0); clearFx = null; popups.length = 0; combo = 0;
+  score = 0; lines = 0; level = 1; dropTimer = 0; piece = null; nextType = null; counts.fill(0); clearFx = null; popups.length = 0; combo = 0; fxs.length = 0;
   updateUI(); drawNext();
   state = 'count';
   let n = 3; showDigit(n);
@@ -459,8 +489,7 @@ function animate(dt) {
     piece.ra *= Math.exp(-dt / 60);
     if (Math.abs(piece.ra) < .01) piece.ra = 0;
   }
-  shake *= Math.exp(-dt / 70);
-  if (shake < .2) shake = 0;
+  for (let i = fxs.length - 1; i >= 0; i--) { fxs[i].t += dt; if (fxs[i].t >= FX_MS) fxs.splice(i, 1); }
 }
 function loop(t) {
   const dt = t - last; last = t;
