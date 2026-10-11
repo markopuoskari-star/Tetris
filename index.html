@@ -143,6 +143,7 @@ function spawn() {
   drawNext();
   if (collides(piece.m, piece.x, piece.y)) gameOver();
 }
+let combo = 0;           // peräkkäisten 4 rivin pudotusten määrä
 let clearFx = null;      // rivien poistoanimaatio
 const popups = [];       // kelluvat pistetekstit
 const FLASH_MS = 520, FALL_MS = 180;
@@ -155,12 +156,15 @@ function lock() {
   grid.forEach((r, y) => { if (r.every(v => v)) rows.push(y); });
   piece = null;
   if (!rows.length) { spawn(); return; }
-  const gain = [0,100,300,500,800][rows.length] * level;
+  // 4 rivin kombo: jokainen peräkkäinen nelirivinen +50 % (enintään ×3); 1-3 rivin poisto katkaisee sarjan
+  combo = rows.length === 4 ? combo + 1 : 0;
+  const mult = combo > 1 ? Math.min(3, 1 + (combo - 1) * .5) : 1;
+  const gain = Math.round([0,100,300,500,800][rows.length] * level * mult);
   score += gain;
   lines += rows.length;
   level = 1 + Math.floor(lines / 10);
   updateUI();
-  popups.push({ text: '+' + fmt(gain), y: (rows[0] + rows[rows.length - 1] + 1) / 2 * SZ, t: 0 });
+  popups.push({ text: '+' + fmt(gain), sub: combo > 1 ? 'kombo ×' + combo : '', y: (rows[0] + rows[rows.length - 1] + 1) / 2 * SZ, t: 0 });
   clearFx = { rows, t: 0, phase: 0, off: [] };
   state = 'clear';
 }
@@ -264,6 +268,12 @@ function draw() {
     const y = p.y - Math.min(1, p.t / 1000) * 50;
     ctx.strokeStyle = '#fff'; ctx.strokeText(p.text, COLS * SZ / 2, y);
     ctx.fillStyle = '#0c0c14'; ctx.fillText(p.text, COLS * SZ / 2, y);
+    if (p.sub) {
+      ctx.font = '32px "Squada One", "Arial Narrow", sans-serif'; ctx.lineWidth = 5;
+      ctx.strokeStyle = '#fff'; ctx.strokeText(p.sub, COLS * SZ / 2, y + 34);
+      ctx.fillStyle = '#e01414'; ctx.fillText(p.sub, COLS * SZ / 2, y + 34);
+      ctx.font = '46px "Squada One", "Arial Narrow", sans-serif'; ctx.lineWidth = 6;
+    }
   });
   ctx.globalAlpha = 1;
 }
@@ -347,7 +357,7 @@ function start() {
   clearInterval(countTimer);
   releaseAll();
   grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-  score = 0; lines = 0; level = 1; dropTimer = 0; piece = null; nextType = null; counts.fill(0); clearFx = null; popups.length = 0;
+  score = 0; lines = 0; level = 1; dropTimer = 0; piece = null; nextType = null; counts.fill(0); clearFx = null; popups.length = 0; combo = 0;
   updateUI(); drawNext();
   state = 'count';
   let n = 3; showDigit(n);
@@ -366,7 +376,7 @@ function showPauseMenu() {
   showMenu('paused', '', [['resume', resume, true], ['tulokset', showScores], ['ohjeet', showHelp], ['uusi peli', start]]);
 }
 function showHelp() {
-  showMenu('ohjeet', '← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>väli pudota heti<br>P tauko<br>rivit 1/2/3/4: 100/300/500/800 × taso',
+  showMenu('ohjeet', '← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>väli pudota heti<br>P tauko<br>rivit 1/2/3/4: 100/300/500/800 × taso<br>peräkkäiset 4 rivin poistot: kombo +50 % kerrallaan (max ×3)',
     [['takaisin', showPauseMenu, true]]);
 }
 function resume() { if (state !== 'pause') return; hideOv(); state = 'play'; last = performance.now(); }
