@@ -185,6 +185,13 @@ function drawNext() {
 function draw() {
   ctx.clearRect(0, 0, COLS * SZ, ROWS * SZ);
   grid.forEach((row, y) => row.forEach((v, x) => v && cell(ctx, x, y, v)));
+  if (piece && state === 'play') {
+    let gy = piece.y;
+    while (!collides(piece.m, piece.x, gy + 1)) gy++;
+    ctx.globalAlpha = .25;
+    piece.m.forEach((row, y) => row.forEach((v, x) => v && gy + y >= 0 && cell(ctx, piece.x + x, gy + y, v)));
+    ctx.globalAlpha = 1;
+  }
   if (piece && state !== 'idle')
     piece.m.forEach((row, y) => row.forEach((v, x) => v && piece.y + y >= 0 && cell(ctx, piece.x + x, piece.y + y, v)));
 }
