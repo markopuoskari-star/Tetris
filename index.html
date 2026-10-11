@@ -5,56 +5,107 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tetris</title>
 <style>
-  body { margin:0; background:#111; color:#eee; font-family:sans-serif;
-         display:flex; justify-content:center; align-items:center; min-height:100vh; }
-  #wrap { display:flex; gap:20px; padding:16px; }
-  canvas { background:#000; border:2px solid #555; }
-  #side { width:140px; }
-  h1 { margin:0 0 12px; font-size:24px; }
-  p { margin:6px 0; }
-  .small { font-size:12px; color:#aaa; line-height:1.6; }
-  button { margin-top:10px; padding:6px 12px; }
+  :root {
+    /* Layout: pelialue vasemmalla, oikealla seuraava palikka, tilarivit ja ohjeet; skaalautuu koko ruudulle */
+    --bg:#d6e4f7; --stripe:#cadbf2; --frame:#6b78a8; --panel:#dbeaff; --well:#bfd0ec;
+    --ink:#6b78a8; --ink-strong:#0c0c14;
+    --font:"Squada One", "Arial Narrow", system-ui, sans-serif; color-scheme:light;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;padding-inline:16px;padding-block:20px;font-family:var(--font);color:var(--ink);
+       background:repeating-linear-gradient(135deg,var(--bg) 0 6px,var(--stripe) 6px 8px);
+       display:flex;flex-direction:column;align-items:center;gap:12px;user-select:none;-webkit-user-select:none}
+  #stage{flex:none}
+  #game{width:662px;height:660px;display:flex;gap:10px;transform-origin:0 0}
+  .box{border:6px solid var(--frame);background:var(--panel)}
+  #boardBox{position:relative;width:372px;height:660px;background:var(--well)}
+  #board{display:block}
+  #side{width:280px;display:flex;flex-direction:column;gap:12px}
+  #nextBox{height:146px;display:flex;align-items:center;justify-content:center}
+  #stats{display:flex;flex-direction:column;border:6px solid var(--frame);background:var(--panel)}
+  .row{display:flex;justify-content:space-between;align-items:center;height:62px;padding-inline:8px;
+       font-size:36px;border-bottom:6px solid var(--frame)}
+  .row:last-child{border-bottom:0}
+  .row b{font-weight:400;color:var(--ink-strong);font-variant-numeric:tabular-nums}
+  #pauseBtn{align-self:center;font:inherit;font-size:36px;color:var(--ink);background:none;border:0;
+            cursor:pointer;padding:4px 12px}
+  #pauseBtn::before,#pauseBtn::after{content:"";display:inline-block;width:8px;height:8px;
+            background:var(--ink);margin-inline:12px;vertical-align:middle}
+  #help{font-size:22px;line-height:1.35;padding:10px 14px;flex:1}
+  #help b{font-weight:400;color:var(--ink-strong)}
+  #ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:10px;background:rgba(107,120,168,.35)}
+  #ov[hidden]{display:none}
+  #ov .digit{font-size:120px;color:var(--ink);line-height:1}
+  #ov .menu{width:320px;background:var(--panel);border:6px solid var(--frame);padding:14px 14px 18px;
+            display:flex;flex-direction:column;align-items:center;gap:10px;font-size:32px;text-align:center}
+  #ov .menu p{margin:0;font-size:26px;line-height:1.3}
+  #ov button,#pad button{font:inherit;color:var(--ink);background:var(--panel);border:6px solid var(--frame);cursor:pointer}
+  #ov button{width:100%;font-size:34px;padding:4px 0}
+  #ov button.primary{color:var(--ink-strong)}
+  #ov button:hover,#pauseBtn:hover{color:var(--ink-strong)}
+  button:focus-visible{outline:3px solid var(--ink-strong);outline-offset:2px}
+  #pad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:420px}
+  #pad button{padding:12px 0;font-size:26px;touch-action:none;-webkit-user-select:none}
+  @media (hover:hover) and (pointer:fine){ #pad{display:none} }
+  @media (hover:none),(pointer:coarse){ #help{display:none} }
 </style>
-</head>
-<body>
-<div id="wrap">
-  <canvas id="board" width="240" height="480"></canvas>
-  <div id="side">
-    <h1>Tetris</h1>
-    <p>Pisteet: <b id="score">0</b></p>
-    <p>Rivit: <b id="lines">0</b></p>
-    <p>Taso: <b id="level">1</b></p>
-    <canvas id="next" width="100" height="100"></canvas>
-    <button id="restart">Uusi peli</button>
-    <p class="small">← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>Väli pudota heti<br>P tauko</p>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Squada+One&display=swap">
+<div id="stage">
+  <div id="game">
+    <div id="boardBox" class="box">
+      <canvas id="board" width="360" height="648"></canvas>
+      <div id="ov" hidden></div>
+    </div>
+    <div id="side">
+      <div id="nextBox" class="box"><canvas id="next" width="200" height="120"></canvas></div>
+      <div id="stats">
+        <div class="row"><span>level</span><b id="level">1</b></div>
+        <div class="row"><span>score</span><b id="score">0</b></div>
+        <div class="row"><span>lines</span><b id="lines">0</b></div>
+      </div>
+      <button id="pauseBtn">pause</button>
+      <div id="help" class="box">
+        <b>←  →</b> liikuta<br><b>↑</b> kierrä<br><b>↓</b> pudota hitaasti<br><b>väli</b> pudota heti<br><b>P</b> tauko
+      </div>
+    </div>
   </div>
 </div>
+<div id="pad">
+  <button data-k="ArrowLeft" aria-label="Vasen">◀</button>
+  <button data-k="ArrowRight" aria-label="Oikea">▶</button>
+  <button data-k="ArrowUp" aria-label="Kierrä">⟳</button>
+  <button data-k="ArrowDown" aria-label="Pudota hitaasti">▼</button>
+  <button data-k="Space" aria-label="Pudota heti">⤓</button>
+</div>
 <script>
-const COLS = 10, ROWS = 20, SZ = 24;
+const COLS = 10, ROWS = 18, SZ = 36;
 const ctx = document.getElementById('board').getContext('2d');
 const nctx = document.getElementById('next').getContext('2d');
-const COLORS = [null,'#0ff','#00f','#f90','#ff0','#0f0','#a0f','#f00'];
+// I oranssi, J violetti, L sininen, O punainen, S syaani, T keltainen, Z vihreä
+const COLORS = [null,'#f07810','#b020e0','#1c1cdc','#e01414','#58c4ec','#f0f010','#10e810'];
 const SHAPES = [
   null,
   [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], // I
-  [[2,0,0],[2,2,2],[0,0,0]],                 // J
+  [[2,2,2],[0,0,2],[0,0,0]],                 // J (kuten esikatselussa)
   [[0,0,3],[3,3,3],[0,0,0]],                 // L
   [[4,4],[4,4]],                             // O
   [[0,5,5],[5,5,0],[0,0,0]],                 // S
-  [[0,6,0],[6,6,6],[0,0,0]],                 // T
+  [[6,6,6],[0,6,0],[0,0,0]],                 // T
   [[7,7,0],[0,7,7],[0,0,0]]                  // Z
 ];
-
-let grid, piece, nextType, score, lines, level, dropTimer, last, over, paused;
+const $ = id => document.getElementById(id);
+let grid, piece, nextType, score, lines, level, dropTimer, last, state = 'idle', countTimer;
 
 const rand = () => 1 + Math.floor(Math.random() * 7);
 const rotate = m => m[0].map((_, i) => m.map(r => r[i]).reverse());
+const fmt = n => n.toLocaleString('en-US');
 
 function newPiece(type) {
   const m = SHAPES[type].map(r => r.slice());
   return { m, x: Math.floor((COLS - m[0].length) / 2), y: 0 };
 }
-
 function collides(m, px, py) {
   for (let y = 0; y < m.length; y++)
     for (let x = 0; x < m[y].length; x++) {
@@ -65,14 +116,12 @@ function collides(m, px, py) {
     }
   return false;
 }
-
 function spawn() {
   piece = newPiece(nextType);
   nextType = rand();
   drawNext();
-  if (collides(piece.m, piece.x, piece.y)) over = true;
+  if (collides(piece.m, piece.x, piece.y)) gameOver();
 }
-
 function lock() {
   piece.m.forEach((row, y) => row.forEach((v, x) => {
     if (v && piece.y + y >= 0) grid[piece.y + y][piece.x + x] = v;
@@ -91,80 +140,116 @@ function lock() {
     level = 1 + Math.floor(lines / 10);
     updateUI();
   }
-  spawn();
+  if (state === 'play') spawn();
 }
-
-function move(dx) {
-  if (!collides(piece.m, piece.x + dx, piece.y)) piece.x += dx;
-}
-
+const move = dx => { if (!collides(piece.m, piece.x + dx, piece.y)) piece.x += dx; };
 function softDrop() {
-  if (!collides(piece.m, piece.x, piece.y + 1)) piece.y++;
-  else lock();
+  if (!collides(piece.m, piece.x, piece.y + 1)) piece.y++; else lock();
   dropTimer = 0;
 }
-
 function hardDrop() {
   let d = 0;
   while (!collides(piece.m, piece.x, piece.y + 1)) { piece.y++; d++; }
-  score += d * 2;
-  updateUI();
-  lock();
-  dropTimer = 0;
+  score += d * 2; updateUI();
+  lock(); dropTimer = 0;
 }
-
 function rot() {
   const r = rotate(piece.m);
-  for (const k of [0, -1, 1, -2, 2]) { // yksinkertainen seinäpotku
+  for (const k of [0, -1, 1, -2, 2])
     if (!collides(r, piece.x + k, piece.y)) { piece.m = r; piece.x += k; return; }
-  }
 }
 
+// Viistetty palikka mustalla ääriviivalla
 function cell(c, x, y, v, s = SZ) {
-  c.fillStyle = COLORS[v];
-  c.fillRect(x * s, y * s, s, s);
-  c.strokeStyle = 'rgba(0,0,0,.4)';
-  c.strokeRect(x * s + .5, y * s + .5, s - 1, s - 1);
+  const px = x * s, py = y * s, b = Math.max(2, Math.round(s / 9));
+  c.fillStyle = '#000'; c.fillRect(px, py, s, s);
+  c.fillStyle = COLORS[v]; c.fillRect(px + 2, py + 2, s - 4, s - 4);
+  c.fillStyle = 'rgba(255,255,255,.45)';
+  c.fillRect(px + 2, py + 2, s - 4, b); c.fillRect(px + 2, py + 2, b, s - 4);
+  c.fillStyle = 'rgba(0,0,0,.3)';
+  c.fillRect(px + 2, py + s - 2 - b, s - 4, b); c.fillRect(px + s - 2 - b, py + 2, b, s - 4);
 }
-
 function drawNext() {
-  nctx.clearRect(0, 0, 100, 100);
-  const m = SHAPES[nextType], s = 20;
-  const ox = (5 - m[0].length) / 2, oy = (5 - m.length) / 2;
-  m.forEach((row, y) => row.forEach((v, x) => v && cell(nctx, x + ox, y + oy, v, s)));
+  nctx.clearRect(0, 0, 200, 120);
+  if (nextType == null) return;
+  const m = SHAPES[nextType].filter(r => r.some(v => v));
+  const cols = m[0].length, s = 30;
+  // keskitä palikan todelliseen leveyteen
+  let minX = 9, maxX = 0;
+  m.forEach(r => r.forEach((v, x) => { if (v) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); } }));
+  const w = (maxX - minX + 1) * s, h = m.length * s;
+  nctx.save(); nctx.translate((200 - w) / 2 - minX * s, (120 - h) / 2);
+  m.forEach((row, y) => row.forEach((v, x) => v && cell(nctx, x, y, v, s)));
+  nctx.restore();
 }
-
 function draw() {
   ctx.clearRect(0, 0, COLS * SZ, ROWS * SZ);
   grid.forEach((row, y) => row.forEach((v, x) => v && cell(ctx, x, y, v)));
-  if (!over) {
-    // haamu
-    let gy = piece.y;
-    while (!collides(piece.m, piece.x, gy + 1)) gy++;
-    ctx.globalAlpha = .2;
-    piece.m.forEach((row, y) => row.forEach((v, x) => v && cell(ctx, piece.x + x, gy + y, v)));
-    ctx.globalAlpha = 1;
-    piece.m.forEach((row, y) => row.forEach((v, x) => v && cell(ctx, piece.x + x, piece.y + y, v)));
-  }
-  if (over || paused) {
-    ctx.fillStyle = 'rgba(0,0,0,.7)';
-    ctx.fillRect(0, 0, COLS * SZ, ROWS * SZ);
-    ctx.fillStyle = '#fff';
-    ctx.font = '24px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(over ? 'Peli ohi' : 'Tauko', COLS * SZ / 2, ROWS * SZ / 2);
-  }
+  if (piece && state !== 'idle')
+    piece.m.forEach((row, y) => row.forEach((v, x) => v && piece.y + y >= 0 && cell(ctx, piece.x + x, piece.y + y, v)));
+}
+function updateUI() {
+  $('score').textContent = fmt(score);
+  $('lines').textContent = fmt(lines);
+  $('level').textContent = level;
 }
 
-function updateUI() {
-  document.getElementById('score').textContent = score;
-  document.getElementById('lines').textContent = lines;
-  document.getElementById('level').textContent = level;
+// Päällysruutu: lähtölaskenta ja valikot
+const ov = $('ov');
+function hideOv() { ov.hidden = true; ov.replaceChildren(); }
+function showDigit(n) {
+  ov.replaceChildren(); ov.hidden = false;
+  const d = document.createElement('div'); d.className = 'digit'; d.textContent = n; ov.append(d);
+}
+function showMenu(title, text, items) {
+  ov.replaceChildren(); ov.hidden = false;
+  const m = document.createElement('div'); m.className = 'menu';
+  const t = document.createElement('div'); t.textContent = title; m.append(t);
+  if (text) { const p = document.createElement('p'); p.innerHTML = text; m.append(p); }
+  items.forEach(([label, fn, primary]) => {
+    const b = document.createElement('button'); b.textContent = label;
+    if (primary) b.className = 'primary';
+    b.addEventListener('click', fn); m.append(b);
+  });
+  ov.append(m);
+  m.querySelector('button')?.focus({ preventScroll: true });
+}
+
+function start() {
+  clearInterval(countTimer);
+  releaseAll();
+  grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  score = 0; lines = 0; level = 1; dropTimer = 0; piece = null; nextType = null;
+  updateUI(); drawNext();
+  state = 'count';
+  let n = 3; showDigit(n);
+  countTimer = setInterval(() => {
+    n--;
+    if (n > 0) return showDigit(n);
+    clearInterval(countTimer);
+    hideOv(); nextType = rand(); state = 'play'; spawn(); last = performance.now();
+  }, 800);
+}
+function pause() {
+  if (state !== 'play') return;
+  state = 'pause'; releaseAll(); showPauseMenu();
+}
+function showPauseMenu() {
+  showMenu('paused', '', [['resume', resume, true], ['ohjeet', showHelp], ['uusi peli', start]]);
+}
+function showHelp() {
+  showMenu('ohjeet', '← → liikuta<br>↑ kierrä<br>↓ pudota hitaasti<br>väli pudota heti<br>P tauko',
+    [['takaisin', showPauseMenu, true]]);
+}
+function resume() { if (state !== 'pause') return; hideOv(); state = 'play'; last = performance.now(); }
+function gameOver() {
+  state = 'over'; releaseAll();
+  showMenu('game over', `pisteet ${fmt(score)}<br>rivit ${lines}`, [['uusi peli', start, true]]);
 }
 
 function loop(t) {
   const dt = t - last; last = t;
-  if (!over && !paused) {
+  if (state === 'play') {
     dropTimer += dt;
     if (dropTimer > Math.max(80, 800 - (level - 1) * 70)) softDrop();
   }
@@ -172,17 +257,9 @@ function loop(t) {
   requestAnimationFrame(loop);
 }
 
-function start() {
-  grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-  score = 0; lines = 0; level = 1; dropTimer = 0; over = false; paused = false;
-  nextType = rand();
-  spawn();
-  updateUI();
-}
-
 function act(code) {
-  if (code === 'KeyP') { paused = !paused; return true; }
-  if (over || paused) return false;
+  if (code === 'KeyP') { state === 'pause' ? resume() : pause(); return true; }
+  if (state !== 'play') return false;
   switch (code) {
     case 'ArrowLeft': move(-1); break;
     case 'ArrowRight': move(1); break;
@@ -194,6 +271,7 @@ function act(code) {
   return true;
 }
 const ACTIONS = ['ArrowLeft','ArrowRight','ArrowDown','ArrowUp','Space','KeyP'];
+
 // Pohjassa pidetty liikenappi toistuu: pieni viive, sitten tasainen toisto
 const REPEAT = { ArrowLeft: 70, ArrowRight: 70, ArrowDown: 50 };
 const holds = {};
@@ -212,20 +290,31 @@ function release(code) {
 function releaseAll() { Object.keys(holds).forEach(release); }
 document.addEventListener('keydown', e => {
   if (!ACTIONS.includes(e.code)) return;
+  if (e.target.tagName === 'BUTTON' && e.code === 'Space') return; // väli painikkeella = klikkaus
   e.preventDefault();
   if (!e.repeat) press(e.code);
 });
 document.addEventListener('keyup', e => release(e.code));
-window.addEventListener('blur', releaseAll);
+window.addEventListener('blur', () => { releaseAll(); pause(); });
 document.querySelectorAll('[data-k]').forEach(b => {
   b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); press(b.dataset.k); });
   ['pointerup', 'pointercancel'].forEach(t => b.addEventListener(t, () => release(b.dataset.k)));
 });
-document.getElementById('restart').onclick = e => { start(); e.target.blur(); };
+$('pauseBtn').addEventListener('click', e => { state === 'pause' ? resume() : pause(); e.target.blur(); });
 
+// Skaalaa peli ikkunaan sopivaksi
+function fit() {
+  const pad = $('pad'), padH = pad.offsetParent ? pad.offsetHeight + 12 : 0;
+  const s = Math.max(.4, Math.min(1, (innerWidth - 32) / 662, (innerHeight - 40 - padH) / 660));
+  $('game').style.transform = `scale(${s})`;
+  $('stage').style.width = 662 * s + 'px';
+  $('stage').style.height = 660 * s + 'px';
+}
+addEventListener('resize', fit);
+
+fit();
 start();
 last = performance.now();
 requestAnimationFrame(loop);
 </script>
-</body>
 </html>
