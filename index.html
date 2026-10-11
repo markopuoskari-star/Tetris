@@ -602,9 +602,14 @@ document.addEventListener('pointerdown', e => {
 document.addEventListener('pointermove', e => {
   if (!gs) return;
   const r = bd.getBoundingClientRect(), cw = r.width / COLS, ch = r.height / ROWS;
-  while (e.clientX - gs.ax >= cw * .9) { act('ArrowRight'); gs.ax += cw; gs.moved = true; }
-  while (gs.ax - e.clientX >= cw * .9) { act('ArrowLeft'); gs.ax -= cw; gs.moved = true; }
-  while (e.clientY - gs.ay >= ch * .9) { act('ArrowDown'); gs.ay += ch; gs.moved = true; }
+  // Kun veto on selvästi alaspäin, sivuttaisliike lukitaan loppuvedon ajaksi
+  const vy = e.clientY - gs.y0;
+  if (vy > cw * .6 && vy > Math.abs(e.clientX - gs.x0) * 1.2) gs.down = true;
+  if (!gs.down) {
+    while (e.clientX - gs.ax >= cw * .9) { act('ArrowRight'); gs.ax += cw; gs.moved = true; }
+    while (gs.ax - e.clientX >= cw * .9) { act('ArrowLeft'); gs.ax -= cw; gs.moved = true; }
+  }
+  while (e.clientY - gs.ay >= ch * .9) { act('ArrowDown'); gs.ay += ch; gs.moved = true; gs.down = true; }
   if (e.clientY < gs.ay) gs.ay = e.clientY;
 });
 document.addEventListener('pointerup', e => {
