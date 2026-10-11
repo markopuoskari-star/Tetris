@@ -98,17 +98,16 @@ const SHAPES = [
 const $ = id => document.getElementById(id);
 let grid, piece, nextType, score, lines, level, dropTimer, last, state = 'idle', countTimer;
 
-// Tasapainotettu arvonta: jokainen 7 palikan pussi sisältää kaikki tyypit kerran
-let bag = [];
+// Tasapainotettu arvonta: mitä enemmän palikkaa on tullut muihin verrattuna,
+// sitä epätodennäköisempi se on. Ei kiinteitä eriä, mutta pitkässä juoksussa määrät tasaantuvat.
+let counts = Array(8).fill(0);
 function rand() {
-  if (!bag.length) {
-    bag = [1, 2, 3, 4, 5, 6, 7];
-    for (let i = bag.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [bag[i], bag[j]] = [bag[j], bag[i]];
-    }
-  }
-  return bag.pop();
+  const min = Math.min(...counts.slice(1));
+  const w = counts.map((c, i) => i ? Math.pow(0.5, c - min) : 0);
+  let r = Math.random() * w.reduce((s, x) => s + x, 0), t = 1;
+  for (; t < 7; t++) { r -= w[t]; if (r < 0) break; }
+  counts[t]++;
+  return t;
 }
 const rotate = m => m[0].map((_, i) => m.map(r => r[i]).reverse());
 const fmt = n => n.toLocaleString('en-US');
@@ -237,7 +236,7 @@ function start() {
   clearInterval(countTimer);
   releaseAll();
   grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-  score = 0; lines = 0; level = 1; dropTimer = 0; piece = null; nextType = null; bag = [];
+  score = 0; lines = 0; level = 1; dropTimer = 0; piece = null; nextType = null; counts.fill(0);
   updateUI(); drawNext();
   state = 'count';
   let n = 3; showDigit(n);
