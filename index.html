@@ -319,7 +319,9 @@ function draw() {
       let gy = piece.y;
       while (!collides(piece.m, piece.x, gy + 1)) gy++;
       piece.gy += (gy - piece.gy) * .4;
-      ctx.globalAlpha = .22; shape(piece.vx, piece.gy, 0); ctx.globalAlpha = 1;
+      // varjo häivytetään pois, kun palikka on lähellä kiinnittymistä
+      const fade = Math.min(1, Math.max(0, (piece.gy - piece.vy - 1.5) / 3));
+      if (fade > 0) { ctx.globalAlpha = .22 * fade; shape(piece.vx, piece.gy, 0); ctx.globalAlpha = 1; }
     }
     shape(piece.vx, piece.vy, piece.ra);
   }
