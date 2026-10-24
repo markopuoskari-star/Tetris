@@ -30,7 +30,7 @@
   <canvas id="c" width="360" height="600"></canvas>
   <div id="ov">
     <h2>Leevin villapaita</h2>
-    <p>Auta Leevi kutomaan villapaita! Kerää putoavat lankakerät, mutta väistä koit. Jokainen kerä kutoo yhden kerroksen paitaan.</p>
+    <p>Auta Leevi kutomaan villapaita! Kerää putoavat lankakerät, mutta väistä koit. Jokainen kerä kutoo yhden kerroksen paitaan, ja välillä putoava mummo neuloo kerralla viisi.</p>
     <p><small>Puhelin: vedä sormella · Tietokone: nuolet tai A/D · P tauottaa</small></p>
     <button id="go">Aloita</button>
   </div>
@@ -50,11 +50,11 @@ function reset(){
 function rnd(a,b){return a+Math.random()*(b-a)}
 function spawn(){
   const r=Math.random(),lvl=1+Math.floor(s.score/10);
-  const type=r<.2+Math.min(.15,lvl*.015)?'moth':(r>.96?'gold':'wool');
+  const type=r<.2+Math.min(.15,lvl*.015)?'moth':(r>.96?'gold':r>.92?'granny':'wool');
   s.items.push({type,x:rnd(24,W-24),y:-20,vy:rnd(120,170)+lvl*14,c:COLORS[Math.random()*COLORS.length|0],ph:rnd(0,6)});
 }
 function knit(gold){
-  const n=gold?3:1;
+  const n=gold===5?5:gold?3:1;
   for(let i=0;i<n;i++){
     if(s.rows.length>=ROWS){s.rows=[];s.flash=1;s.lives=Math.min(5,s.lives+1)}   // valmis paita: uusi aloitus + lisäelämä
     s.rows.push(COLORS[Math.random()*COLORS.length|0]);
@@ -83,10 +83,10 @@ function update(dt){
   for(const it of s.items){
     it.y+=it.vy*dt;
     if(it.type==='moth')it.x+=Math.sin(s.t*5+it.ph)*50*dt;
-    if(!it.hit&&it.y>GROUND-70&&it.y<GROUND-10&&Math.abs(it.x-s.x)<34){
+    if(!it.hit&&it.y>GROUND-70&&it.y<GROUND-10&&Math.abs(it.x-s.x)<(it.type==='granny'?44:34)){
       it.hit=true;
       if(it.type==='moth'){s.lives--;s.combo=0;s.flash=-1;if(s.lives<=0)end()}
-      else knit(it.type==='gold');
+      else knit(it.type==='granny'?5:it.type==='gold');
     }
   }
   s.items=s.items.filter(i=>!i.hit&&i.y<H+30);
@@ -104,6 +104,21 @@ function moth(x,y,t){
   for(const d of[-1,1]){g.save();g.translate(x,y);g.scale(d,1);g.rotate(f*.8);
     g.beginPath();g.ellipse(11,-2,12,7,-.3,0,7);g.fill();g.restore()}
   g.fillStyle='#3b3028';g.beginPath();g.ellipse(x,y+1,3.5,9,0,0,7);g.fill();
+}
+function granny(x,y,t){
+  const w=Math.sin(t*4)*.12;
+  g.save();g.translate(x,y);g.rotate(w);
+  g.fillStyle='#8e5ba8';g.beginPath();g.ellipse(0,10,30,26,0,0,7);g.fill();      // pyöreä mummo, kukkamekko
+  g.fillStyle='#fff';g.beginPath();g.ellipse(0,14,18,15,0,0,7);g.fill();           // essu
+  g.fillStyle='#e9b3d0';for(const[a,b]of[[-22,4],[22,6],[-14,26],[16,28]]){g.beginPath();g.arc(a,b,3.5,0,7);g.fill()}
+  g.fillStyle='#f2c9a0';g.beginPath();g.arc(0,-22,15,0,7);g.fill();                // pää
+  g.fillStyle='#d8d8d8';g.beginPath();g.arc(0,-26,15,Math.PI,0);g.fill();           // harmaat hiukset
+  g.beginPath();g.arc(0,-43,6,0,7);g.fill();                                        // nuttura
+  g.strokeStyle='#333';g.lineWidth=1.5;for(const d of[-6,6]){g.beginPath();g.arc(d,-22,4.5,0,7);g.stroke()}
+  g.fillStyle='#333';g.fillRect(-7,-23,2,2);g.fillRect(5,-23,2,2);
+  g.beginPath();g.arc(0,-16,4,.2,Math.PI-.2);g.stroke();
+  g.strokeStyle='#c0392b';g.lineWidth=3;g.beginPath();g.moveTo(-30,0);g.lineTo(-44,-14);g.moveTo(30,0);g.lineTo(44,-14);g.stroke(); // heiluvat kädet
+  g.restore();
 }
 function leevi(x,y){
   // vartalo = villapaita, kerrokset kasvavat alhaalta ylös
@@ -135,6 +150,7 @@ function draw(){
   g.fillStyle='#dfe8ef';g.fillRect(0,GROUND,W,4);
   for(const it of s.items){
     if(it.type==='moth')moth(it.x,it.y,s.t+it.ph);
+    else if(it.type==='granny')granny(it.x,it.y,s.t+it.ph);
     else ball(it.x,it.y,it.type==='gold'?17:13,it.type==='gold'?'#f5c518':it.c);
   }
   leevi(s.x,GROUND);
