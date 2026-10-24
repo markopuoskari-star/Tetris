@@ -16,3 +16,9 @@ Yksinkertainen selaimessa toimiva Tetris-peli. Koko peli on yhdessä tiedostossa
 - Hidas pudotus 1 piste ruudulta, pikapudotus 2 pistettä ruudulta.
 
 Parhaat tulokset tallentuvat selaimen omaan muistiin (localStorage).
+
+## Leevin villapaitapeli
+
+Toinen peli samassa repossa: `villapaita.html`. Kerää putoavat lankakerät ja väistä koit – jokainen kerä kutoo Leevin paitaan yhden kerroksen. Kultainen kerä kutoo kolme. Vedä sormella (puhelin) tai käytä nuolinäppäimiä / A ja D (tietokone).
+
+**Pelaa:** https://markopuoskari-star.github.io/Tetris/villapaita.html
